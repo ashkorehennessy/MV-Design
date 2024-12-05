@@ -1,6 +1,8 @@
 import sys
 import cv2
 import time
+import os
+import glob
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLineEdit, QMessageBox
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
@@ -27,9 +29,7 @@ class VideoCaptureThread(QThread):
         self.fps = 0.0
 
     def run(self):
-        self.video = cv2.VideoCapture('/dev/video0')
-        self.video.set(3, width)
-        self.video.set(4, height)
+        self.connect_camera()
 
         while self.running:
             ret, frame = self.video.read()
@@ -37,18 +37,7 @@ class VideoCaptureThread(QThread):
                 frame = np.zeros((height, width, 3), np.uint8)
                 self.video.release()
                 print("Camera disconnected. Attempting to reconnect...")
-
-                for video_index in range(10):
-                    time.sleep(1)
-                    path = f'/dev/video{video_index}'
-                    print(f"Testing {path}")
-                    self.video = cv2.VideoCapture(path)
-                    ret, frame = self.video.read()
-                    if ret:
-                        print("Camera reconnected.")
-                        self.video.set(3, width)
-                        self.video.set(4, height)
-                        break
+                self.connect_camera()
 
             if ret:
                 self.frame_ready.emit(frame)
@@ -57,9 +46,24 @@ class VideoCaptureThread(QThread):
                 self.fps_tick = current_time
                 self.fps_updated.emit(self.fps)
 
+    def connect_camera(self):
+        video_devices = glob.glob('/dev/video*')
+        for device in video_devices:
+            print(f"Testing {device}")
+            self.video = cv2.VideoCapture(device)
+            if self.video.isOpened():
+                self.video.set(3, width)
+                self.video.set(4, height)
+                ret, _ = self.video.read()
+                if ret:
+                    print(f"Connected to {device}")
+                    return
+        print("No available camera devices.")
+
     def stop(self):
         self.running = False
-        self.video.release()
+        if self.video:
+            self.video.release()
         self.quit()
         self.wait()
 
