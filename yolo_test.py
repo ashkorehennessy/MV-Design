@@ -4,9 +4,11 @@ from ultralytics import YOLO
 
 # Load the YOLO model
 model = YOLO("yolo11n_ncnn_model")
-ncnn_model_imgsz = 192
+ncnn_model_imgsz = 128
 # Open the video file
 cap = cv2.VideoCapture(0)
+cap.set(3, 320)
+cap.set(4, 240)
 
 # Loop through the video frames
 while cap.isOpened():
@@ -21,15 +23,15 @@ while cap.isOpened():
         annotated_frame = results[0].plot()
 
         # Display the annotated frameq
-        # cv2.imshow("YOLO Inference", annotated_frame)
+        cv2.imshow("YOLO Inference", annotated_frame)
 
         # Break the loop if 'q' is pressed
-        # if cv2.waitKey(1) & 0xFF == ord("q"):
-        #     break
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
     else:
         # Break the loop if the end of the video is reached
         break
 
 # Release the video capture object and close the display window
 cap.release()
-# cv2.destroyAllWindows()
+cv2.destroyAllWindows()
