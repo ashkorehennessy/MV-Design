@@ -24,7 +24,8 @@ MODEL_LIST = [
     ("不加载模型", None),
     ("YOLO11_PT", "load_yolo11_pt_model"),
     ("YOLO11_ONNX", "load_yolo11_onnx_model"),
-    ("YOLO11_NCNN", "load_yolo11_ncnn_model")
+    ("YOLO11_NCNN", "load_yolo11_ncnn_model"),
+    ("HaarCascades", "load_haarcascades_model")
 ]
 
 
@@ -81,6 +82,8 @@ class VideoCaptureThread(QThread):
             frame = self.run_yolo11_onnx_inference(frame)
         elif self.current_model_name == "YOLO11_NCNN":
             frame = self.run_yolo11_ncnn_inference(frame)
+        elif self.current_model_name == "HaarCascades":
+            frame = self.run_haarcascades_inference(frame)
         return frame
 
     def run_yolo11_pt_inference(self, frame):
@@ -96,6 +99,13 @@ class VideoCaptureThread(QThread):
     def run_yolo11_ncnn_inference(self, frame):
         results = self.current_model(frame, imgsz=ncnn_model_imgsz, int8=True)
         frame = results[0].plot()
+        return frame
+
+    def run_haarcascades_inference(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = self.current_model.detectMultiScale(gray, 1.3, 5)
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
         return frame
 
     def stop(self):
@@ -241,17 +251,16 @@ class CameraApp(QWidget):
 
 # Placeholder model load functions
 def load_yolo11_pt_model():
-    model = YOLO("yolo11n.pt")
-    return model
+    return YOLO("yolo11n.pt")
 
 def load_yolo11_onnx_model():
-    model = YOLO("yolo11n.onnx")
-    return model
+    return YOLO("yolo11n.onnx")
 
 def load_yolo11_ncnn_model():
-    model = YOLO("yolo11n_ncnn_model")
-    return model
+    return YOLO("yolo11n_ncnn_model")
 
+def load_haarcascades_model():
+    return cv2.CascadeClassifier("./haarcascades/haarcascade_frontalface_default.xml")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
