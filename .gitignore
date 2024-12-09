@@ -2,3 +2,6 @@
 __pycache__/
 # pycharm config
 .idea/
+# cmake
+yolo_fastestv2/cmake-build-debug
+yolo_fastestv2/cmake-build-release

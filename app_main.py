@@ -1,12 +1,15 @@
 import sys
 import cv2
 import time
+import glob
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLineEdit, \
     QMessageBox, QComboBox
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap
 from ultralytics import YOLO
+from yolo_fastestv2.yolo_fastestv2 import YoloFastestV2
+import platform
 
 width = 320
 height = 240
@@ -25,7 +28,8 @@ MODEL_LIST = [
     ("YOLO11_PT", "load_yolo11_pt_model"),
     ("YOLO11_ONNX", "load_yolo11_onnx_model"),
     ("YOLO11_NCNN", "load_yolo11_ncnn_model"),
-    ("HaarCascades", "load_haarcascades_model")
+    ("HaarCascades", "load_haarcascades_model"),
+    ("YOLO FastestV2", "load_yolo_fastestv2_model")
 ]
 
 
@@ -68,12 +72,18 @@ class VideoCaptureThread(QThread):
                 self.inference_time_updated.emit(self.inference_time)
 
     def connect_camera(self):
-        self.video = cv2.VideoCapture(0)
-        if not self.video.isOpened():
-            print("Failed to connect to camera.")
-            return
-        self.video.set(3, width)
-        self.video.set(4, height)
+        video_devices = glob.glob('/dev/video*')
+        for device in video_devices:
+            print(f"Testing {device}")
+            self.video = cv2.VideoCapture(device)
+            if self.video.isOpened():
+                self.video.set(3, width)
+                self.video.set(4, height)
+                ret, _ = self.video.read()
+                if ret:
+                    print(f"Connected to {device}")
+                    return
+        print("No available camera devices.")
 
     def run_inference(self, frame):
         if self.current_model_name == "YOLO11_PT":
@@ -84,6 +94,8 @@ class VideoCaptureThread(QThread):
             frame = self.run_yolo11_ncnn_inference(frame)
         elif self.current_model_name == "HaarCascades":
             frame = self.run_haarcascades_inference(frame)
+        elif self.current_model_name == "YOLO FastestV2":
+            frame = self.run_yolo_fastestv2_inference(frame)
         return frame
 
     def run_yolo11_pt_inference(self, frame):
@@ -106,6 +118,17 @@ class VideoCaptureThread(QThread):
         faces = self.current_model.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        return frame
+
+    def run_yolo_fastestv2_inference(self, frame):
+        results = self.current_model.infer(frame)
+        print("Inference result:", results)
+        for box in results or []:
+            x1, y1, x2, y2 = box["x1"], box["y1"], box["x2"], box["y2"]
+            label = f'{box["class"]}: {box["score"]:.2f}'
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 225, 0), 2)
+            cv2.rectangle(frame, (x1, y1 - 17), (x1 + 100, y1), (0, 255, 0), -1)
+            cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         return frame
 
     def stop(self):
@@ -261,6 +284,10 @@ def load_yolo11_ncnn_model():
 
 def load_haarcascades_model():
     return cv2.CascadeClassifier("./haarcascades/haarcascade_frontalface_default.xml")
+
+def load_yolo_fastestv2_model():
+    arch = platform.machine()
+    return YoloFastestV2("./yolo_fastestv2/yolo_fastestv2_" + arch)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
