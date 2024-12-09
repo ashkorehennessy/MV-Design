@@ -8,6 +8,7 @@ find_package(OpenCV REQUIRED)
 
 include_directories(${CMAKE_SOURCE_DIR}/inc)
 
+link_directories(${CMAKE_SOURCE_DIR}/lib)
 # 查找 CPU 架构
 execute_process(
         COMMAND uname -m
@@ -20,7 +21,6 @@ if (ARCHITECTURE STREQUAL "aarch64")
     set(EXECUTABLE_NAME yolo_fastestv2_aarch64)
 elseif (ARCHITECTURE STREQUAL "x86_64")
     set(EXECUTABLE_NAME yolo_fastestv2_x86_64)
-    link_directories(${CMAKE_SOURCE_DIR}/lib)
 else ()
     message(FATAL_ERROR "Unsupported architecture: ${ARCHITECTURE}")
 endif ()
@@ -32,4 +32,9 @@ file(GLOB SOURCES "${CMAKE_SOURCE_DIR}/src/*.cpp")
 add_executable(${EXECUTABLE_NAME} ${SOURCES})
 
 set_target_properties(${EXECUTABLE_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
-target_link_libraries(${EXECUTABLE_NAME} PRIVATE ncnn ${OpenCV_LIBS})
+
+if (ARCHITECTURE STREQUAL "aarch64")
+    target_link_libraries(${EXECUTABLE_NAME} PRIVATE ncnn_aarch64 ${OpenCV_LIBS})
+elseif (ARCHITECTURE STREQUAL "x86_64")
+    target_link_libraries(${EXECUTABLE_NAME} PRIVATE ncnn_x86_64 ${OpenCV_LIBS})
+endif ()
