@@ -23,6 +23,7 @@ USER_DATABASE = {
 MODEL_LIST = [
     ("不加载模型", None),
     ("YOLO11_PT", "load_yolo11_pt_model"),
+    ("YOLO11_ONNX", "load_yolo11_onnx_model"),
     ("YOLO11_NCNN", "load_yolo11_ncnn_model")
 ]
 
@@ -76,22 +77,23 @@ class VideoCaptureThread(QThread):
     def run_inference(self, frame):
         if self.current_model_name == "YOLO11_PT":
             frame = self.run_yolo11_pt_inference(frame)
+        elif self.current_model_name == "YOLO11_ONNX":
+            frame = self.run_yolo11_onnx_inference(frame)
         elif self.current_model_name == "YOLO11_NCNN":
             frame = self.run_yolo11_ncnn_inference(frame)
         return frame
 
     def run_yolo11_pt_inference(self, frame):
-        # Load and run YOLOv3 model on frame
-        # (You should implement the actual YOLOv3 inference here)
-        # Placeholder for bounding box drawing
+        results = self.current_model(frame)
+        frame = results[0].plot()
+        return frame
+
+    def run_yolo11_onnx_inference(self, frame):
         results = self.current_model(frame)
         frame = results[0].plot()
         return frame
 
     def run_yolo11_ncnn_inference(self, frame):
-        # Load and run SSD model on frame
-        # (You should implement the actual SSD inference here)
-        # Placeholder for bounding box drawing
         results = self.current_model(frame, imgsz=ncnn_model_imgsz, int8=True)
         frame = results[0].plot()
         return frame
@@ -239,13 +241,14 @@ class CameraApp(QWidget):
 
 # Placeholder model load functions
 def load_yolo11_pt_model():
-    # Load YOLO model here
     model = YOLO("yolo11n.pt")
     return model
 
+def load_yolo11_onnx_model():
+    model = YOLO("yolo11n.onnx")
+    return model
 
 def load_yolo11_ncnn_model():
-    # Load SSD model here
     model = YOLO("yolo11n_ncnn_model")
     return model
 

@@ -5,4 +5,4 @@ from ultralytics import YOLO
 model = YOLO("./yolo11n.pt")  # load an official model
 
 # Export the model
-model.export(format="openvino",int8=True,batch=4)
+model.export(format="ncnn",imgsz=128)
