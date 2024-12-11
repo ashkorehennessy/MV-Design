@@ -13,18 +13,18 @@ yoloFastestv2::yoloFastestv2()
     //anchor num
     numAnchor = 3;
     //类别数目
-    numCategory = 80;
+    numCategory = 1;
     //NMS阈值
-    nmsThresh = 0.25;
+    nmsThresh = 0.1;
 
     //模型输入尺寸大小
-    inputWidth = 352;
-    inputHeight = 352;
+    inputWidth = 160;
+    inputHeight = 160;
 
     //模型输入输出节点名称
     inputName = "input.1";
-    outputName1 = "794"; //22x22
-    outputName2 = "796"; //11x11
+    outputName1 = "770"; //22x22
+    outputName2 = "772"; //11x11
 
     net.opt.num_threads = numThreads;
 
@@ -33,8 +33,8 @@ yoloFastestv2::yoloFastestv2()
     // printf("inputWidth:%d inputHeight:%d\n", inputWidth, inputHeight);
 
     //anchor box w h
-    std::vector<float> bias {12.64,19.39, 37.88,51.48, 55.71,138.31, 
-                             126.91,78.23, 131.57,214.55, 279.92,258.87};
+    std::vector<float> bias {21.79,26.40, 23.28,58.30, 31.81,38.72,
+                             45.74,59.60, 82.60,103.12, 161.33,209.89};
 
     anchor.assign(bias.begin(), bias.end());
 }

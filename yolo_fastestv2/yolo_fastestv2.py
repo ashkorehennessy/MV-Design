@@ -73,7 +73,7 @@ class YoloFastestV2:
 
 # 示例使用
 if __name__ == "__main__":
-    yolo_proc = YoloFastestV2("./yolo_fastestv2")
+    yolo_proc = YoloFastestV2("./yolo_fastestv2_aarch64")
     cap = cv2.VideoCapture(0)  # 打开摄像头
 
     while True:

@@ -4,9 +4,9 @@ from ultralytics import YOLO
 time_tick = time.time()
 time_used = 0.0
 # Load the YOLO model
-model = YOLO("yolo11n_ncnn_model")
+model = YOLO("best_ncnn_model")
 # Open the video file
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2)
 # cap.set(3, 320)
 # cap.set(4, 240)
 
@@ -19,7 +19,7 @@ while cap.isOpened():
         # Run YOLO inference on the frame
         time_used = (time.time() - time_tick) * 0.1 + time_used * 0.9
         time_tick = time.time()
-        results = model(frame,imgsz=352)
+        results = model(frame,imgsz=160)
         # Visualize the results on the frame
         annotated_frame = results[0].plot()
         cv2.putText(annotated_frame, f"Inference time: {time_used*1000:.2f}ms", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)

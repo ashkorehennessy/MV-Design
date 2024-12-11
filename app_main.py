@@ -1,10 +1,12 @@
 import sys
+from collections import defaultdict
+
 import cv2
 import time
 import glob
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QWidget, QLineEdit, \
-    QMessageBox, QComboBox
+    QMessageBox, QComboBox, QCheckBox
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
 from PyQt5.QtGui import QImage, QPixmap
 from ultralytics import YOLO
@@ -13,7 +15,7 @@ import platform
 
 width = 320
 height = 240
-ncnn_model_imgsz = 128
+export_imgsz = 160
 
 # Simple user database
 USER_DATABASE = {
@@ -26,12 +28,12 @@ USER_DATABASE = {
 MODEL_LIST = [
     ("不加载模型", None),
     ("YOLO11_PT", "load_yolo11_pt_model"),
-    ("YOLO11_ONNX", "load_yolo11_onnx_model"),
     ("YOLO11_NCNN", "load_yolo11_ncnn_model"),
     ("HaarCascades", "load_haarcascades_model"),
     ("YOLO FastestV2", "load_yolo_fastestv2_model")
 ]
 
+TRACK_HISTORY = defaultdict(lambda: [])
 
 class VideoCaptureThread(QThread):
     frame_ready = pyqtSignal(np.ndarray)
@@ -47,6 +49,7 @@ class VideoCaptureThread(QThread):
         self.inference_time = 0.0
         self.current_model = None
         self.current_model_name = "不加载模型"
+        self.enable_tracking = False
 
     def run(self):
         self.connect_camera()
@@ -87,11 +90,15 @@ class VideoCaptureThread(QThread):
 
     def run_inference(self, frame):
         if self.current_model_name == "YOLO11_PT":
-            frame = self.run_yolo11_pt_inference(frame)
-        elif self.current_model_name == "YOLO11_ONNX":
-            frame = self.run_yolo11_onnx_inference(frame)
+            if self.enable_tracking:
+                frame = self.run_yolo11_pt_inference_track(frame)
+            else:
+                frame = self.run_yolo11_pt_inference(frame)
         elif self.current_model_name == "YOLO11_NCNN":
-            frame = self.run_yolo11_ncnn_inference(frame)
+            if self.enable_tracking:
+                frame = self.run_yolo11_ncnn_inference_track(frame)
+            else:
+                frame = self.run_yolo11_ncnn_inference(frame)
         elif self.current_model_name == "HaarCascades":
             frame = self.run_haarcascades_inference(frame)
         elif self.current_model_name == "YOLO FastestV2":
@@ -103,14 +110,42 @@ class VideoCaptureThread(QThread):
         frame = results[0].plot()
         return frame
 
-    def run_yolo11_onnx_inference(self, frame):
-        results = self.current_model(frame)
+    def run_yolo11_pt_inference_track(self, frame):
+        results = self.current_model.track(frame, persist=True)
         frame = results[0].plot()
+        if results[0].boxes.id is not None:
+            boxes = results[0].boxes.xywh.cpu()
+            track_ids = results[0].boxes.id.int().cpu().tolist()
+            for box, track_id in zip(boxes, track_ids):
+                x, y, w, h = box
+                track = TRACK_HISTORY[track_id]
+                track.append((float(x), float(y)))  # x, y center point
+                if len(track) > 30:  # retain 90 tracks for 90 frames
+                    track.pop(0)
+                # Draw the tracking lines
+                points = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
+                cv2.polylines(frame, [points], isClosed=False, color=(0, 255, 0), thickness=2)
         return frame
 
     def run_yolo11_ncnn_inference(self, frame):
-        results = self.current_model(frame, imgsz=ncnn_model_imgsz, int8=True)
+        results = self.current_model(frame, imgsz=export_imgsz)
         frame = results[0].plot()
+        return frame
+
+    def run_yolo11_ncnn_inference_track(self, frame):
+        results = self.current_model.track(frame, imgsz=export_imgsz, persist=True)
+        frame = results[0].plot()
+        if results[0].boxes.id is not None:
+            boxes = results[0].boxes.xywh.cpu()
+            track_ids = results[0].boxes.id.int().cpu().tolist()
+            for box, track_id in zip(boxes, track_ids):
+                x, y, w, h = box
+                track = TRACK_HISTORY[track_id]
+                track.append((float(x), float(y)))
+                if len(track) > 30:
+                    track.pop(0)
+                points = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
+                cv2.polylines(frame, [points], isClosed=False, color=(0, 255, 0), thickness=2)
         return frame
 
     def run_haarcascades_inference(self, frame):
@@ -208,6 +243,8 @@ class CameraApp(QWidget):
         self.inference_time_label.setAlignment(Qt.AlignLeft)
         self.choose_model_label = QLabel("选择模型:", self)
         self.choose_model_label.setAlignment(Qt.AlignLeft)
+        self.enable_tracking_checkbox = QCheckBox("开启跟踪", self)
+        self.enable_tracking_checkbox.stateChanged.connect(self.on_tracking_checkbox_changed)
 
 
         self.quit_button = QPushButton("退出系统", self)
@@ -222,6 +259,7 @@ class CameraApp(QWidget):
         layout.addWidget(self.image_label)
         layout.addWidget(self.fps_label)
         layout.addWidget(self.inference_time_label)
+        layout.addWidget(self.enable_tracking_checkbox)
         layout.addWidget(self.choose_model_label)
         layout.addWidget(self.model_select)
         layout.addWidget(self.quit_button)
@@ -229,6 +267,12 @@ class CameraApp(QWidget):
         self.setLayout(layout)
         self.setWindowTitle("人脸识别系统")
         self.resize(330, 370)
+
+    def on_tracking_checkbox_changed(self, state):
+        if state == Qt.Checked:
+            self.capture_thread.enable_tracking = True
+        else:
+            self.capture_thread.enable_tracking = False
 
     def update_frame(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -274,13 +318,10 @@ class CameraApp(QWidget):
 
 # Placeholder model load functions
 def load_yolo11_pt_model():
-    return YOLO("yolo11n.pt")
-
-def load_yolo11_onnx_model():
-    return YOLO("yolo11n.onnx")
+    return YOLO("best.pt")
 
 def load_yolo11_ncnn_model():
-    return YOLO("yolo11n_ncnn_model")
+    return YOLO("best_ncnn_model")
 
 def load_haarcascades_model():
     return cv2.CascadeClassifier("./haarcascades/haarcascade_frontalface_default.xml")
