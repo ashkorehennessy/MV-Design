@@ -15,7 +15,7 @@ import platform
 
 width = 320
 height = 240
-export_imgsz = 160
+export_imgsz = 128
 
 # Simple user database
 USER_DATABASE = {
@@ -30,7 +30,7 @@ MODEL_LIST = [
     ("YOLO11_PT", "load_yolo11_pt_model"),
     ("YOLO11_NCNN", "load_yolo11_ncnn_model"),
     ("HaarCascades", "load_haarcascades_model"),
-    ("YOLO FastestV2", "load_yolo_fastestv2_model")
+    ("YOLO_FastestV2_NCNN", "load_yolo_fastestv2_model")
 ]
 
 TRACK_HISTORY = defaultdict(lambda: [])
@@ -101,7 +101,7 @@ class VideoCaptureThread(QThread):
                 frame = self.run_yolo11_ncnn_inference(frame)
         elif self.current_model_name == "HaarCascades":
             frame = self.run_haarcascades_inference(frame)
-        elif self.current_model_name == "YOLO FastestV2":
+        elif self.current_model_name == "YOLO_FastestV2_NCNN":
             frame = self.run_yolo_fastestv2_inference(frame)
         return frame
 
@@ -120,7 +120,7 @@ class VideoCaptureThread(QThread):
                 x, y, w, h = box
                 track = TRACK_HISTORY[track_id]
                 track.append((float(x), float(y)))  # x, y center point
-                if len(track) > 30:  # retain 90 tracks for 90 frames
+                if len(track) > 15:  # retain 90 tracks for 90 frames
                     track.pop(0)
                 # Draw the tracking lines
                 points = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
@@ -142,7 +142,7 @@ class VideoCaptureThread(QThread):
                 x, y, w, h = box
                 track = TRACK_HISTORY[track_id]
                 track.append((float(x), float(y)))
-                if len(track) > 30:
+                if len(track) > 15:
                     track.pop(0)
                 points = np.hstack(track).astype(np.int32).reshape((-1, 1, 2))
                 cv2.polylines(frame, [points], isClosed=False, color=(0, 255, 0), thickness=2)
@@ -152,7 +152,7 @@ class VideoCaptureThread(QThread):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.current_model.detectMultiScale(gray, 1.3, 5)
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 0, 0), 2)
         return frame
 
     def run_yolo_fastestv2_inference(self, frame):
@@ -161,8 +161,8 @@ class VideoCaptureThread(QThread):
         for box in results or []:
             x1, y1, x2, y2 = box["x1"], box["y1"], box["x2"], box["y2"]
             label = f'{box["class"]}: {box["score"]:.2f}'
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 225, 0), 2)
-            cv2.rectangle(frame, (x1, y1 - 17), (x1 + 100, y1), (0, 255, 0), -1)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+            cv2.rectangle(frame, (x1, y1 - 17), (x1 + 100, y1), (255, 0, 0), -1)
             cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
         return frame
 
@@ -265,7 +265,7 @@ class CameraApp(QWidget):
         layout.addWidget(self.quit_button)
 
         self.setLayout(layout)
-        self.setWindowTitle("人脸识别系统")
+        self.setWindowTitle("人脸检测系统")
         self.resize(330, 370)
 
     def on_tracking_checkbox_changed(self, state):
@@ -318,10 +318,10 @@ class CameraApp(QWidget):
 
 # Placeholder model load functions
 def load_yolo11_pt_model():
-    return YOLO("best.pt")
+    return YOLO("yolo11_128.pt")
 
 def load_yolo11_ncnn_model():
-    return YOLO("best_ncnn_model")
+    return YOLO("yolo11_128_ncnn_model")
 
 def load_haarcascades_model():
     return cv2.CascadeClassifier("./haarcascades/haarcascade_frontalface_default.xml")

@@ -11,7 +11,7 @@ int main() {
     };
 
     yoloFastestv2 api;
-    api.loadModel("./yolo_fastestv2/model/face-opt.param", "./yolo_fastestv2/model/face-opt.bin");
+    api.loadModel("./yolo_fastestv2/model/yolo_fastestv2_256-opt.param", "./yolo_fastestv2/model/yolo_fastestv2_256-opt.bin");
 
     while (true) {
         // 读取图像大小

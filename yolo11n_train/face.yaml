@@ -1,0 +1,8 @@
+path: face # dataset root dir
+train: train # train images
+val: val # val images
+
+# Classes
+names:
+  0: face
+

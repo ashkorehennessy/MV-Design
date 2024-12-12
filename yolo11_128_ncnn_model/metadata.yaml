@@ -1,0 +1,14 @@
+description: Ultralytics YOLO11n model trained on yolo11n_train/face.yaml
+author: Ultralytics
+date: '2024-12-12T09:35:57.141377'
+version: 8.3.43
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 128
+- 128
+names:
+  0: face
